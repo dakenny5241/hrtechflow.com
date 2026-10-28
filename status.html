@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HRTechFlow — System Status</title>
+<meta name="robots" content="noindex"/>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    background:#F8FAFC; min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .card {
+    background:#fff; border-radius:16px; padding:36px 32px;
+    max-width:440px; width:100%;
+    box-shadow:0 4px 24px rgba(0,0,0,.06);
+    text-align:center;
+  }
+  .icon { font-size:52px; margin-bottom:16px; }
+  h1 { font-size:20px; color:#0F1F3D; margin-bottom:6px; }
+  .sub { font-size:13px; color:#64748B; margin-bottom:24px; }
+  .status-line {
+    font-size:16px; font-weight:800; padding:14px 18px;
+    border-radius:10px; margin-bottom:16px;
+  }
+  .ok   { background:#E6F4EE; color:#008751; }
+  .down { background:#FDEAEA; color:#D94040; }
+  .checking { background:#F1F5F9; color:#64748B; }
+  .detail { font-size:12px; color:#94A3B8; margin-top:4px; }
+  .ts { font-size:11px; color:#CBD5E1; margin-top:20px; }
+  .keyword { display:none; } /* invisible marker text for uptime keyword monitoring */
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon" id="icon">⏳</div>
+    <h1>HRTechFlow System Status</h1>
+    <p class="sub">Live check of the app's backend connection</p>
+    <div class="status-line checking" id="status-line">Checking backend connection…</div>
+    <div class="detail" id="detail"></div>
+    <div class="ts" id="ts"></div>
+  </div>
+
+  <!-- Hidden marker for uptime keyword monitoring — see the operator's
+       own notes for exact monitor configuration; the marker word is
+       deliberately never spelled out as a literal string in this file's
+       source, so a raw keyword search of the page source can't produce
+       a false "healthy" match during a real outage. -->
+  <span class="keyword" id="keyword-marker"></span>
+
+<script>
+const SUPA_URL = "https://xceyukskdfgpityubqnf.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjZXl1a3NrZGZncGl0eXVicW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NTE5NTIsImV4cCI6MjA5OTUyNzk1Mn0.p2sZpMJJ_XAjf8Urnzc46p4SRVBWeJhjDMhkv3ANwuo";
+
+const statusLine = document.getElementById("status-line");
+const icon       = document.getElementById("icon");
+const detail     = document.getElementById("detail");
+const ts         = document.getElementById("ts");
+const keyword    = document.getElementById("keyword-marker");
+
+function showResult(ok, message) {
+  statusLine.className = "status-line " + (ok ? "ok" : "down");
+  statusLine.textContent = ok ? "✅ All systems operational" : "❌ Backend unreachable";
+  icon.textContent = ok ? "✅" : "🔴";
+  detail.textContent = message;
+  ts.textContent = "Last checked: " + new Date().toLocaleString();
+  // This exact word is what UptimeRobot's keyword check watches for —
+  // only present in the page's text when the backend check succeeds.
+  // Built from parts on purpose — the literal keyword must never appear
+  // as a contiguous string anywhere in this file's raw source, or a
+  // plain-text keyword search would find it even during a real outage.
+  keyword.textContent = ok ? (["STATUS","OK"].join("_")) : "";
+  document.title = (ok ? "✅ " : "🔴 ") + "HRTechFlow Status";
+}
+
+async function checkBackend() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000); // don't hang forever
+  const started = Date.now();
+  try {
+    const res = await fetch(SUPA_URL + "/rest/v1/companies?select=id&limit=1", {
+      headers: { apikey: SUPA_KEY, Authorization: "Bearer " + SUPA_KEY },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const ms = Date.now() - started;
+    if (res.ok) {
+      showResult(true, "Database responded in " + ms + "ms");
+    } else {
+      showResult(false, "Database returned an error (HTTP " + res.status + "). It may be paused — check your Supabase dashboard.");
+    }
+  } catch (e) {
+    clearTimeout(timeout);
+    if (e.name === "AbortError") {
+      showResult(false, "Database did not respond within 8 seconds — likely paused or offline.");
+    } else {
+      showResult(false, "Could not reach the database at all: " + e.message);
+    }
+  }
+}
+
+checkBackend();
+// Re-check automatically every 60s if someone leaves this tab open
+setInterval(checkBackend, 60000);
+</script>
+</body>
+</html>
