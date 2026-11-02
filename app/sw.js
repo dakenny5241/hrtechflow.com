@@ -4,15 +4,15 @@
 // requests are left alone entirely so the app's own offline-session
 // logic handles those.
 
-const CACHE_NAME = 'hrtechflow-v2';
-const OFFLINE_URL = '/index.html';
+const CACHE_NAME = 'hrtechflow-v3';
+const OFFLINE_URL = '/app/index.html';
 
 // Core assets to cache on install — the app must be able to load
 // from these alone with zero network access.
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  '/app/',
+  '/app/index.html',
+  '/app/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
