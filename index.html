@@ -1334,7 +1334,7 @@ const pwHash = {
       <div class="sb-user-row">
         <div id="sb-avatar-wrap" style="width:34px;height:34px;flex-shrink:0;position:relative;">
           <div class="avatar" id="sb-avatar" style="width:34px;height:34px;font-size:12px;flex-shrink:0;position:absolute;inset:0;"></div>
-          <img id="sb-profile-pic" style="display:none;width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #F5A623;position:absolute;inset:0;"/>
+          <img id="sb-profile-pic" alt="Profile picture" style="display:none;width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #F5A623;position:absolute;inset:0;"/>
         </div>
         <div style="overflow:hidden;">
           <div class="sb-user-name" id="sb-name">—</div>
@@ -2344,7 +2344,7 @@ const pwHash = {
               <div class="tbl-wrap">
                 <table class="tbl">
                   <thead><tr><th>Item</th><th>Category</th><th>Quantity</th><th>Status</th><th></th></tr></thead>
-                  <tbody id="kitchen-stock-tbody"></tbody>
+                  <tbody id="kitchen-items-stock-tbody"></tbody>
                 </table>
               </div>
             </div>
@@ -2892,7 +2892,7 @@ const pwHash = {
                     <div style="font-size:13px;color:#64748B;margin-top:8px;">Click to upload logo</div>
                     <div style="font-size:11px;color:#94A3B8;margin-top:4px;">PNG, JPG or SVG · Max 2MB</div>
                   </div>
-                  <img id="logo-img-preview" style="display:none;max-width:200px;max-height:80px;object-fit:contain;"/>
+                  <img id="logo-img-preview" alt="Logo preview" style="display:none;max-width:200px;max-height:80px;object-fit:contain;"/>
                 </div>
                 <input type="file" id="logo-file-input" accept="image/*" style="display:none;" onchange="handleLogoUpload(event)"/>
               </div>
@@ -3084,7 +3084,7 @@ const pwHash = {
                   <div id="profile-pic-placeholder" style="width:72px;height:72px;border-radius:50%;background:#E2E8F0;display:flex;align-items:center;justify-content:center;font-size:28px;border:2px dashed #CBD5E1;">
                     👤
                   </div>
-                  <img id="profile-pic-img" style="display:none;width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #F5A623;"/>
+                  <img id="profile-pic-img" alt="Profile picture" style="display:none;width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #F5A623;"/>
                   <div style="position:absolute;bottom:0;right:0;width:22px;height:22px;background:#F5A623;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;">✏️</div>
                 </div>
                 <div>
@@ -3499,7 +3499,7 @@ const pwHash = {
         <input type="file" id="mv-receipt-file" accept="image/*" onchange="handleReceiptUpload(event)" style="font-size:12px;"/>
         <div style="font-size:11px;color:#94A3B8;margin-top:4px;">Snap or upload a soft copy of the receipt — under 2MB. Great for tracking BBQ/restaurant purchases against actual stock.</div>
         <div id="mv-receipt-preview-wrap" style="display:none;margin-top:8px;position:relative;width:fit-content;">
-          <img id="mv-receipt-preview" style="max-height:120px;border-radius:8px;border:1px solid #E2E8F0;display:block;"/>
+          <img id="mv-receipt-preview" alt="Receipt preview" style="max-height:120px;border-radius:8px;border:1px solid #E2E8F0;display:block;"/>
           <button type="button" onclick="removeReceiptPreview()" style="position:absolute;top:-8px;right:-8px;background:#D94040;color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px;">✕</button>
         </div>
       </div>
@@ -3517,7 +3517,7 @@ const pwHash = {
     <div style="text-align:right;margin-bottom:8px;">
       <button onclick="closeModal('receipt-viewer-modal')" style="background:#fff;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:16px;">✕</button>
     </div>
-    <img id="receipt-viewer-img" style="width:100%;max-height:75vh;object-fit:contain;border-radius:10px;background:#fff;"/>
+    <img id="receipt-viewer-img" alt="Receipt" style="width:100%;max-height:75vh;object-fit:contain;border-radius:10px;background:#fff;"/>
   </div>
 </div>
 
@@ -7158,7 +7158,7 @@ function downloadREReceipt(saleId) {
 @media print{@page{margin:0;}.np{display:none;}}</style></head>
 <body>
 <div class="hdr">
-  ${p.logoData?`<img src="${p.logoData}" style="max-height:50px;margin-bottom:8px;"/><br/>`:""}
+  ${p.logoData?`<img src="${p.logoData}" alt="${esc(bname)} logo" style="max-height:50px;margin-bottom:8px;"/><br/>`:""}
   <div style="font-size:22px;font-weight:900;">${esc(bname)}</div>
   <div style="font-size:12px;opacity:.7;margin-top:4px;">PAYMENT RECEIPT</div>
 </div>
@@ -7210,7 +7210,7 @@ function downloadPropertyBrochure(prop) {
 @media print{@page{margin:1cm;}.np{display:none;}}</style></head>
 <body>
 <div class="hdr">
-  ${p.logoData?`<img src="${p.logoData}" style="max-height:50px;margin-bottom:12px;display:block;"/>`:""}
+  ${p.logoData?`<img src="${p.logoData}" alt="${esc(bname)} logo" style="max-height:50px;margin-bottom:12px;display:block;"/>`:""}
   <div style="font-size:22px;font-weight:900;">${esc(bname)}</div>
   <div style="font-size:12px;opacity:.7;margin-top:4px;">PROPERTY LISTING</div>
 </div>
@@ -8746,7 +8746,7 @@ function printGuestBill(roomId, guestName, roomNum) {
 @media print{@page{margin:0;}.np{display:none;}}</style></head>
 <body>
 <div class="hdr">
-  ${p.logoData?`<img src="${p.logoData}" style="max-height:45px;margin-bottom:8px;display:block;margin:0 auto;"/>`:""}
+  ${p.logoData?`<img src="${p.logoData}" alt="${esc(bname)} logo" style="max-height:45px;margin-bottom:8px;display:block;margin:0 auto;"/>`:""}
   <div style="font-size:20px;font-weight:900;">${esc(bname)}</div>
   <div style="font-size:12px;opacity:.7;margin-top:4px;">GUEST FOLIO / ROOM BILL</div>
 </div>
@@ -8975,7 +8975,7 @@ function renderKitchenFullMenu() {
         ${items.map(item => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:10px;">
-              ${item.image_data?`<img src="${item.image_data}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;"/>`:''}
+              ${item.image_data?`<img src="${item.image_data}" alt="${esc(item.name||'Item')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;"/>`:''}
               <div>
                 <div style="font-weight:700;font-size:14px;">${esc(item.name)}</div>
                 <div style="font-size:11px;color:#94A3B8;">${fmt(item.price)} · ${item.quantity} left${item.cook_responsible?` · ${esc(item.cook_responsible)}`:''}</div>
@@ -9010,7 +9010,7 @@ function renderKitchenStock() {
     <div class="stat-card" style="border-left:4px solid #0F1F3D;"><div class="stat-label">Total Items</div><div class="stat-value">${kitchenItems.length}</div></div>
     <div class="stat-card" style="border-left:4px solid #D94040;"><div class="stat-label">Low Stock Alerts</div><div class="stat-value" style="color:${lowStockItems.length?'#D94040':'#008751'};">${lowStockItems.length}</div></div>`;
 
-  document.getElementById("kitchen-stock-tbody").innerHTML = kitchenItems.length ? kitchenItems.map(item => `
+  document.getElementById("kitchen-items-stock-tbody").innerHTML = kitchenItems.length ? kitchenItems.map(item => `
     <tr${item.quantity<=LOW_STOCK_THRESHOLD?' style="background:#FEF2F2;"':''}>
       <td class="td-bold">${esc(item.name)}</td>
       <td class="td-muted">${KITCHEN_CATEGORIES[item.category]||item.category}</td>
@@ -9073,7 +9073,7 @@ function renderKitchenChef() {
   if (currentEl) {
     currentEl.innerHTML = todaysChef ? `
       <div class="card" style="padding:20px;display:flex;align-items:center;gap:16px;">
-        ${todaysChef.photo_data?`<img src="${todaysChef.photo_data}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;"/>`:`<div style="width:64px;height:64px;border-radius:50%;background:#F5A623;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:800;">${esc((todaysChef.chef_name||"?")[0])}</div>`}
+        ${todaysChef.photo_data?`<img src="${todaysChef.photo_data}" alt="${esc(todaysChef.chef_name||'Chef')}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;"/>`:`<div style="width:64px;height:64px;border-radius:50%;background:#F5A623;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;font-weight:800;">${esc((todaysChef.chef_name||"?")[0])}</div>`}
         <div style="flex:1;">
           <div style="font-size:11px;font-weight:700;color:#008751;text-transform:uppercase;letter-spacing:.3px;">On Duty Today</div>
           <div style="font-weight:800;font-size:17px;">${esc(todaysChef.chef_name)}</div>
@@ -9751,7 +9751,7 @@ th{background:${col};color:#fff;padding:6px 10px;text-align:left;font-size:11px;
 
 <div class="hdr">
   <div class="hdr-left">
-    ${p.logoData?`<img src="${p.logoData}" style="max-height:50px;"/>`:""}
+    ${p.logoData?`<img src="${p.logoData}" alt="${esc(bname)} logo" style="max-height:50px;"/>`:""}
     <div>
       <div class="hdr-title">Room Check Report</div>
       <div class="hdr-date">${dateStr}</div>
@@ -11946,7 +11946,7 @@ function downloadReceipt(inv) {
     : "RCP-" + invRef;
 
   const logoHtml = p.logoData
-    ? `<img src="${p.logoData}" style="max-height:55px;max-width:150px;object-fit:contain;display:block;"/>`
+    ? `<img src="${p.logoData}" alt="${esc(bname)} logo" style="max-height:55px;max-width:150px;object-fit:contain;display:block;"/>`
     : `<div style="font-size:22px;font-weight:900;color:#fff;">${esc(bname)}</div>`;
 
   const itemRows = items.map(i => `
@@ -12091,7 +12091,7 @@ function downloadInvoice(inv) {
   const statusColor = {Paid:"#008751",Unpaid:"#B07800",Overdue:"#D94040",Draft:"#64748B"}[inv.status]||"#64748B";
 
   const logoHtml = p.logoData
-    ? `<img src="${p.logoData}" style="max-height:60px;max-width:160px;object-fit:contain;display:block;"/>`
+    ? `<img src="${p.logoData}" alt="${esc(bname)} logo" style="max-height:60px;max-width:160px;object-fit:contain;display:block;"/>`
     : `<div style="font-size:24px;font-weight:900;color:#fff;">${esc(bname)}</div>`;
 
   const itemRows = items.map(i=>`
@@ -12251,7 +12251,7 @@ function renderInventory() {
       <td class="td-muted">${esc(m.note||"—")}</td>
       <td style="font-weight:600">${m.balance_after||m.balance||"—"} units</td>
       <td>${m.receipt_image
-        ? `<img src="${m.receipt_image}" onclick="viewReceiptImage('${m.receipt_image.replace(/'/g,"&#39;")}')" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #E2E8F0;cursor:pointer;" title="Click to view full receipt"/>`
+        ? `<img src="${m.receipt_image}" onclick="viewReceiptImage('${m.receipt_image.replace(/'/g,"&#39;")}')" alt="Receipt thumbnail" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #E2E8F0;cursor:pointer;" title="Click to view full receipt"/>`
         : `<span style="color:#CBD5E1;font-size:11px;">—</span>`}</td>
     </tr>`;
   }).join("") :
@@ -14220,7 +14220,7 @@ body{font-family:'Courier New',monospace;width:80mm;margin:0 auto;padding:4mm;fo
 .tr{display:flex;justify-content:space-between;font-size:15px;font-weight:900;padding:4px 0;}
 @media print{@page{margin:0;size:80mm auto;}.np{display:none;}}</style></head>
 <body>
-<div class="c">${p.logoData?`<img src="${p.logoData}" style="max-width:60mm;max-height:18mm;object-fit:contain;margin-bottom:4px;"/><br/>`:""}
+<div class="c">${p.logoData?`<img src="${p.logoData}" alt="${esc(bname)} logo" style="max-width:60mm;max-height:18mm;object-fit:contain;margin-bottom:4px;"/><br/>`:""}
 <div class="b big">${esc(bname)}</div>
 ${p.address?`<div style="font-size:10px;">${esc(p.address)}</div>`:""}
 ${p.phone?`<div style="font-size:10px;">Tel: ${esc(p.phone)}</div>`:""}
@@ -16226,13 +16226,13 @@ function renderInvPreview() {
   if (!el) return;
 
   const logoHtml = logo
-    ? `<img src="${logo}" style="max-height:50px;max-width:120px;object-fit:contain;display:block;"/>`
+    ? `<img src="${logo}" alt="${esc(name)} logo" style="max-height:50px;max-width:120px;object-fit:contain;display:block;"/>`
     : `<div style="font-size:18px;font-weight:900;color:${col};">${esc(name)}</div>`;
 
   el.innerHTML = `
     <div style="background:${col};padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
       <div>
-        ${logo?`<img src="${logo}" style="max-height:40px;max-width:110px;object-fit:contain;display:block;"/>`
+        ${logo?`<img src="${logo}" alt="${esc(name)} logo" style="max-height:40px;max-width:110px;object-fit:contain;display:block;"/>`
                :`<div style="font-size:16px;font-weight:900;color:#fff;">${esc(name)}</div>`}
         ${tag?`<div style="font-size:9px;color:rgba(255,255,255,0.6);margin-top:3px;">${esc(tag)}</div>`:""}
       </div>
@@ -17061,7 +17061,7 @@ window.addEventListener('appinstalled', () => {
         <label>Photo (optional)</label>
         <input type="file" id="ki-image-file" accept="image/*" onchange="handleKitchenItemImageUpload(event)" style="font-size:12px;"/>
         <div id="ki-image-preview-wrap" style="display:none;margin-top:8px;">
-          <img id="ki-image-preview" style="max-height:100px;border-radius:8px;border:1px solid #E2E8F0;"/>
+          <img id="ki-image-preview" alt="Item photo preview" style="max-height:100px;border-radius:8px;border:1px solid #E2E8F0;"/>
         </div>
       </div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
@@ -17134,7 +17134,7 @@ window.addEventListener('appinstalled', () => {
         <label>Photo (optional)</label>
         <input type="file" id="kc-photo-file" accept="image/*" onchange="handleChefPhotoUpload(event)" style="font-size:12px;"/>
         <div id="kc-photo-preview-wrap" style="display:none;margin-top:8px;">
-          <img id="kc-photo-preview" style="max-height:80px;border-radius:50%;border:1px solid #E2E8F0;"/>
+          <img id="kc-photo-preview" alt="Chef photo preview" style="max-height:80px;border-radius:50%;border:1px solid #E2E8F0;"/>
         </div>
       </div>
     </div>
