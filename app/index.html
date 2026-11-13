@@ -8853,6 +8853,14 @@ function isRoomNotReady(room) {
   return !!room && (room.hk_status || "ready") !== "ready";
 }
 
+// Small housekeeping badge for the Rooms tab (only shown when a room isn't Ready).
+function roomHkBadge(room) {
+  if (!isRoomNotReady(room)) return "";
+  const hk = HK_STATUS[room.hk_status] || HK_STATUS.not_ready;
+  const text = room.hk_status === "cleaning" ? "🟡 Cleaning in progress" : room.hk_status === "out_of_order" ? "⛔ Out of order" : "🔴 Not ready";
+  return `<div style="display:inline-block;margin-top:4px;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;background:${hk.color};color:#fff;">${text}</div>`;
+}
+
 // Audit log of every Housekeeping status change (who, what, when).
 let hotelHkLog = [];
 async function logHkStatusChange(roomId, roomNumber, oldStatus, newStatus, changedByLabel) {
@@ -15641,7 +15649,7 @@ function renderRooms() {
           <td class="td-bold">Room ${esc(r.room_number)}</td>
           <td class="td-muted">${esc(r.room_type)}</td>
           <td>${fmt(r.price_per_night)}</td>
-          <td><span class="badge ${statusColors[r.status]||"badge-gray"}">${statusLabels[r.status]||r.status}</span></td>
+          <td><span class="badge ${statusColors[r.status]||"badge-gray"}">${statusLabels[r.status]||r.status}</span> ${roomHkBadge(r)}</td>
           <td class="td-muted">${booking?esc(booking.guest_name):"—"}</td>
           <td class="td-muted">${booking?esc(booking.checkout_date):"—"}</td>
           <td>${lockCell}</td>
@@ -15687,6 +15695,7 @@ function renderRooms() {
         <div>
           <div class="room-cal-num">${esc(r.room_number)}</div>
           <span class="room-cal-status">${statusLabels[r.status]||r.status}</span>
+          ${roomHkBadge(r)}
           ${booking?`<div class="room-cal-guest">👤 ${esc(booking.guest_name)}</div>
             <div class="room-cal-price">Out: ${esc(booking.checkout_date||"—")}</div>
             <div style="font-size:10px;font-weight:700;margin-top:2px;color:${booking.room_charge_approved?'#008751':'#94A3B8'};">
