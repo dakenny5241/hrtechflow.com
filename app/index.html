@@ -8848,6 +8848,11 @@ function canConfirmRoomReady() {
   return isAdmin() || role === "receptionist" || role === "hotel_admin";
 }
 
+// True when a room is not cleared for a new guest (Not Ready / In Progress / Out of Order).
+function isRoomNotReady(room) {
+  return !!room && (room.hk_status || "ready") !== "ready";
+}
+
 // Audit log of every Housekeeping status change (who, what, when).
 let hotelHkLog = [];
 async function logHkStatusChange(roomId, roomNumber, oldStatus, newStatus, changedByLabel) {
@@ -14481,7 +14486,9 @@ function renderHotelReception() {
   const guestCard = (b, showLock) => {
     const room = hotelRooms.find(r=>r.id===b.room_id);
     const approved = !!b.room_charge_approved;
-    return `<div style="background:#F8FAFC;border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+    const notReady = b.status==="confirmed" && isRoomNotReady(room);
+    const hkLabel = notReady ? ((HK_STATUS[room.hk_status]||{}).label || "Not Ready") : "";
+    return `<div style="background:${notReady?'#FEF2F2':'#F8FAFC'};${notReady?'border:1px solid #FCA5A5;':''}border-radius:8px;padding:10px 12px;margin-bottom:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div>
           <div style="font-weight:700;font-size:13px;">👤 ${esc(b.guest_name)}</div>
@@ -14489,6 +14496,13 @@ function renderHotelReception() {
         </div>
         <div style="font-weight:700;font-size:13px;color:#008751;">${fmt(b.total_amount||0)}</div>
       </div>
+      ${notReady ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #FCA5A5;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span style="font-size:11px;font-weight:800;color:#D94040;">🔴 Room not ready — ${esc(hkLabel)} (housekeeping)</span>
+        <button class="btn btn-sm btn-ghost" disabled style="font-size:10px;opacity:.6;cursor:not-allowed;">Check In blocked</button>
+      </div>` : (b.status==="confirmed" ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <span style="font-size:11px;font-weight:700;color:#008751;">🟢 Room ready</span>
+        <button class="btn btn-sm btn-success" onclick="openCheckIn('${b.room_id}')" style="font-size:10px;">✓ Check In</button>
+      </div>` : "")}
       ${showLock ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;">
         <span style="font-size:11px;font-weight:700;color:${approved?'#008751':'#94A3B8'};">${approved?'🔓 Room charges unlocked':'🔒 Room charges locked'}</span>
         <button onclick="toggleRoomChargeApproval('${b.id}')" class="btn btn-sm ${approved?'btn-ghost':'btn-success'}" style="font-size:10px;">
@@ -14550,7 +14564,7 @@ function renderHotelBookingsTable() {
           <td><span class="badge ${statusColors[b.status]||"badge-gray"}">${statusLabels[b.status]||b.status}</span></td>
           <td>
             <div style="display:flex;gap:6px;">
-              ${b.status==="confirmed" ? `<button class="btn btn-success btn-sm" onclick="openCheckIn('${b.room_id}')">Check In</button>` : ""}
+              ${b.status==="confirmed" ? (isRoomNotReady(room) ? `<span class="badge badge-red" title="Housekeeping has not confirmed this room">🔴 Room not ready</span>` : `<button class="btn btn-success btn-sm" onclick="openCheckIn('${b.room_id}')">Check In</button>`) : ""}
               ${b.status==="checked_in" ? `<button class="btn btn-ghost btn-sm" onclick="openCheckOut('${b.room_id}')">Check Out</button>` : ""}
               ${isAdmin() && b.status==="confirmed" ? `<button class="btn btn-danger btn-sm" onclick="cancelBooking('${b.id}')">Cancel</button>` : ""}
             </div>
@@ -15058,6 +15072,11 @@ async function saveBooking() {
 function openCheckIn(roomId) {
   const booking = hotelBookings.find(b => b.room_id === roomId && b.status === "confirmed");
   if (!booking) { showToast("No confirmed booking found for this room."); return; }
+  const hkRoom = hotelRooms.find(r => r.id === roomId);
+  if (isRoomNotReady(hkRoom)) {
+    showToast(`Room ${hkRoom.room_number} is not ready — housekeeping must clean it and a Receptionist must confirm it first.`);
+    return;
+  }
   checkActionData = { type:"checkin", booking };
   document.getElementById("co-modal-title").textContent = "Confirm Check-In";
   document.getElementById("co-icon").textContent = "🛎️";
