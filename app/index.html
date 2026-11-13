@@ -2283,10 +2283,12 @@ const pwHash = {
           </div>
           <!-- Status legend -->
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+            <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;"><span style="width:14px;height:14px;border-radius:3px;background:#D94040;display:inline-block;"></span>Not Ready</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;"><span style="width:14px;height:14px;border-radius:3px;background:#B07800;display:inline-block;"></span>In Progress</span>
             <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;"><span style="width:14px;height:14px;border-radius:3px;background:#008751;display:inline-block;"></span>Ready</span>
-            <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;"><span style="width:14px;height:14px;border-radius:3px;background:#F5A623;display:inline-block;"></span>Under Cleaning</span>
-            <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;"><span style="width:14px;height:14px;border-radius:3px;background:#D94040;display:inline-block;"></span>Out of Order</span>
+            <span style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;"><span style="width:14px;height:14px;border-radius:3px;background:#5B6B86;display:inline-block;"></span>Out of Order</span>
           </div>
+          <p style="font-size:11.5px;color:#64748B;margin:-8px 0 14px;">A room automatically becomes <strong>Not Ready</strong> the moment a guest checks out. Only a Receptionist can confirm it back to <strong>Ready</strong>.</p>
           <div id="hk-room-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:24px;"></div>
           <div class="card" style="padding:20px;">
             <div style="font-size:14px;font-weight:800;margin-bottom:6px;">Housekeeping Expenses</div>
@@ -8827,11 +8829,54 @@ let breakfastClaimed = {}; // roomId → true
 // ══════════════════════════════════════════════════════════════
 // HOUSEKEEPING — room cleaning status board
 // ══════════════════════════════════════════════════════════════
+// Status model: Not Ready (red, auto-set on check-out) → In Progress (yellow,
+// housekeeper cleaning) → Ready (green, Receptionist-only confirmation).
+// "cleaning" is kept as the internal/DB value for "In Progress" so existing
+// rows in the database don't need a migration — only the label/color changed.
 const HK_STATUS = {
-  ready:      {label:"Ready",          color:"#008751", bg:"#E6F4EE"},
-  cleaning:   {label:"Under Cleaning", color:"#B07800", bg:"#FFF3DC"},
-  out_of_order:{label:"Out of Order",  color:"#D94040", bg:"#FDEAEA"},
+  not_ready:   {label:"Not Ready",   color:"#D94040", bg:"#FDEAEA"}, // red
+  cleaning:    {label:"In Progress", color:"#B07800", bg:"#FFF3DC"}, // yellow
+  ready:       {label:"Ready",       color:"#008751", bg:"#E6F4EE"}, // green
+  out_of_order:{label:"Out of Order",color:"#5B6B86", bg:"#EEF1F5"}, // grey
 };
+
+// Only a Receptionist (or an admin) may confirm a room as Ready — a
+// Housekeeping-role user can move a room between Not Ready and In Progress,
+// but cannot clear it for the next guest themselves.
+function canConfirmRoomReady() {
+  const role = STATE.user?.hotel_role;
+  return isAdmin() || role === "receptionist" || role === "hotel_admin";
+}
+
+// Audit log of every Housekeeping status change (who, what, when).
+let hotelHkLog = [];
+async function logHkStatusChange(roomId, roomNumber, oldStatus, newStatus, changedByLabel) {
+  const entry = {
+    company_id: STATE.company.id, room_id: roomId, room_number: roomNumber || "",
+    old_status: oldStatus || null, new_status: newStatus,
+    changed_by: changedByLabel || STATE.user?.name || "Staff",
+  };
+  try {
+    const [rec] = await dbPost("hotel_hk_log", entry);
+    hotelHkLog.unshift(rec);
+  } catch(e) {
+    console.error("Housekeeping log error:", e);
+    hotelHkLog.unshift({...entry, id:"local-"+Date.now(), created_at:new Date().toISOString()});
+  }
+}
+
+// Called automatically on every check-out path — no manual step needed.
+// Sets the room's Housekeeping status back to "Not Ready" and logs it.
+async function markRoomNotReadyOnCheckout(roomId) {
+  if (!roomId) return;
+  const room = hotelRooms.find(r => r.id === roomId);
+  const prevStatus = room?.hk_status || "ready";
+  try {
+    await dbPatch("hotel_rooms", { hk_status: "not_ready" }, `?id=eq.${roomId}`);
+  } catch(e) { console.error("Auto housekeeping status error:", e); }
+  hotelRooms = hotelRooms.map(r => r.id===roomId ? {...r, hk_status:"not_ready"} : r);
+  await logHkStatusChange(roomId, room?.room_number, prevStatus, "not_ready", "System (auto on check-out)");
+}
 
 // ══════════════════════════════════════════════════════════════
 // KITCHEN MODULE — Today's Menu, Breakfast (time-windowed), Full
@@ -9260,20 +9305,32 @@ async function deleteKitchenItem(itemId) {
 function renderHousekeeping() {
   const grid = document.getElementById("hk-room-grid");
   if (!grid) return;
+  const canSetReady = canConfirmRoomReady();
   if (!hotelRooms.length) {
     grid.innerHTML = `<div style="grid-column:1/-1;padding:24px;text-align:center;color:#64748B;">No rooms added yet.</div>`;
   } else {
     grid.innerHTML = hotelRooms.map(r => {
-      const hk = HK_STATUS[r.hk_status||"ready"];
+      const status = r.hk_status || "ready";
+      const hk = HK_STATUS[status] || HK_STATUS.ready;
+      // Housekeeping staff can only move a room between Not Ready and In
+      // Progress — only a Receptionist/admin can confirm it as Ready, and
+      // only a Receptionist/admin can flag a room Out of Order.
+      const options = canSetReady
+        ? `<option value="not_ready"   ${status==="not_ready"?"selected":""}>🔴 Not Ready</option>
+           <option value="cleaning"    ${status==="cleaning"?"selected":""}>🟡 In Progress</option>
+           <option value="ready"       ${status==="ready"?"selected":""}>🟢 Ready</option>
+           <option value="out_of_order"${status==="out_of_order"?"selected":""}>⛔ Out of Order</option>`
+        : `<option value="not_ready"   ${status==="not_ready"?"selected":""}>🔴 Not Ready</option>
+           <option value="cleaning"    ${status==="cleaning"?"selected":""}>🟡 In Progress</option>
+           <option value="ready" disabled ${status==="ready"?"selected":""}>🟢 Ready (Receptionist only)</option>`;
       return `<div style="background:${hk.bg};border:1.5px solid ${hk.color}40;border-radius:12px;padding:14px;">
         <div style="font-weight:900;font-size:16px;color:#0F1F3D;">Room ${esc(r.room_number)}</div>
         <div style="font-size:11px;color:#64748B;margin-bottom:8px;">${esc(r.room_type)}</div>
         <span style="display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:3px 9px;border-radius:20px;background:${hk.color};color:#fff;margin-bottom:10px;">${hk.label}</span>
         <select onchange="changeHkStatus('${r.id}',this.value)" style="width:100%;font-size:12px;font-weight:600;border:1px solid ${hk.color}60;border-radius:7px;padding:6px 8px;background:#fff;color:#1E293B;cursor:pointer;">
-          <option value="ready"        ${(r.hk_status||"ready")==="ready"?"selected":""}>✅ Ready</option>
-          <option value="cleaning"     ${r.hk_status==="cleaning"?"selected":""}>🧹 Under Cleaning</option>
-          <option value="out_of_order" ${r.hk_status==="out_of_order"?"selected":""}>⛔ Out of Order</option>
+          ${options}
         </select>
+        <button onclick="openHkHistory('${r.id}')" style="width:100%;margin-top:7px;background:none;border:none;font-size:11px;font-weight:700;color:#5B6B86;cursor:pointer;text-decoration:underline;">View history</button>
       </div>`;
     }).join("");
   }
@@ -9282,12 +9339,29 @@ function renderHousekeeping() {
 async function changeHkStatus(roomId, newStatus) {
   const room = hotelRooms.find(r => r.id === roomId);
   if (!room) return;
+  const oldStatus = room.hk_status || "ready";
+  if (newStatus === oldStatus) return;
+
+  // Controlled: only a Receptionist/admin can confirm a room as Ready.
+  if (newStatus === "ready" && !canConfirmRoomReady()) {
+    showToast("Only a Receptionist can confirm a room as Ready.");
+    renderHousekeeping();
+    return;
+  }
+  // Housekeeping-role staff is limited to the Not Ready ⇄ In Progress toggle.
+  if (!canConfirmRoomReady() && !["not_ready","cleaning"].includes(newStatus)) {
+    showToast("You don't have permission to set that status.");
+    renderHousekeeping();
+    return;
+  }
+
   try {
     await dbPatch("hotel_rooms", { hk_status: newStatus }, `?id=eq.${roomId}`);
     hotelRooms = hotelRooms.map(r => r.id===roomId ? {...r, hk_status:newStatus} : r);
     renderHousekeeping();
-    const label = HK_STATUS[newStatus].label;
+    const label = (HK_STATUS[newStatus]||{}).label || newStatus;
     showToast(`Room ${room.room_number} marked "${label}" ✓`);
+    await logHkStatusChange(roomId, room.room_number, oldStatus, newStatus, STATE.user?.name || "Staff");
   } catch(e) {
     console.error("Housekeeping status error:", e);
     // Still update locally so front desk sees it even if DB column is missing
@@ -9295,6 +9369,42 @@ async function changeHkStatus(roomId, newStatus) {
     renderHousekeeping();
     showToast("Status updated locally — ask admin to run the latest database update to save permanently.");
   }
+}
+
+// Shows a simple history list of who changed a room's status and when.
+function openHkHistory(roomId) {
+  const room = hotelRooms.find(r => r.id === roomId);
+  const entries = hotelHkLog.filter(l => l.room_id === roomId)
+    .sort((a,b) => (b.created_at||"").localeCompare(a.created_at||""))
+    .slice(0, 50);
+  const rows = entries.length ? entries.map(l => {
+    const from = (HK_STATUS[l.old_status]||{}).label || l.old_status || "—";
+    const to   = (HK_STATUS[l.new_status]||{}).label || l.new_status || "—";
+    const when = l.created_at ? new Date(l.created_at).toLocaleString("en-NG",{dateStyle:"medium",timeStyle:"short"}) : "—";
+    return `<div style="padding:9px 0;border-bottom:1px solid #E2E8F0;font-size:12.5px;">
+      <div style="font-weight:700;color:#0F1F3D;">${esc(from)} → ${esc(to)}</div>
+      <div style="color:#64748B;margin-top:2px;">by ${esc(l.changed_by||"Staff")} · ${esc(when)}</div>
+    </div>`;
+  }).join("") : `<div style="padding:16px 0;text-align:center;color:#64748B;font-size:12.5px;">No status changes recorded yet.</div>`;
+  // Build a one-off modal dynamically — no static markup needed.
+  let el = document.getElementById("hk-history-modal");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "hk-history-modal";
+    el.className = "modal-overlay hidden";
+    el.onclick = (e) => { if (e.target === el) el.classList.add("hidden"); };
+    el.innerHTML = `<div class="modal-box" style="max-width:420px;">
+      <div class="modal-header">
+        <div class="modal-title" id="hk-history-title">Status History</div>
+        <button class="modal-close" onclick="document.getElementById('hk-history-modal').classList.add('hidden')">✕</button>
+      </div>
+      <div id="hk-history-body"></div>
+    </div>`;
+    document.body.appendChild(el);
+  }
+  document.getElementById("hk-history-title").textContent = `Room ${room?.room_number||""} — Status History`;
+  document.getElementById("hk-history-body").innerHTML = `<div style="max-height:360px;overflow-y:auto;">${rows}</div>`;
+  el.classList.remove("hidden");
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -13627,7 +13737,7 @@ let checkActionData = null;
 async function loadHotelData() {
   const cid = STATE.company.id;
   try {
-    const [rooms, bookings, inventory, guests, debtors, payments, halls, hallBks, custAccts, custTxns, kItems, kStockHist, kChefDuty] = await Promise.all([
+    const [rooms, bookings, inventory, guests, debtors, payments, halls, hallBks, custAccts, custTxns, kItems, kStockHist, kChefDuty, hkLog] = await Promise.all([
       dbGet("hotel_rooms",     `?company_id=eq.${cid}&order=room_number.asc`),
       dbGet("hotel_bookings",  `?company_id=eq.${cid}&order=created_at.desc`),
       dbGet("hotel_inventory", `?company_id=eq.${cid}&order=created_at.desc`).catch(()=>[]),
@@ -13641,7 +13751,9 @@ async function loadHotelData() {
       dbGet("kitchen_items",         `?company_id=eq.${cid}&order=name.asc`).catch(()=>[]),
       dbGet("kitchen_stock_history", `?company_id=eq.${cid}&order=created_at.desc&limit=200`).catch(()=>[]),
       dbGet("kitchen_chef_duty",     `?company_id=eq.${cid}&order=created_at.desc`).catch(()=>[]),
+      dbGet("hotel_hk_log",          `?company_id=eq.${cid}&order=created_at.desc&limit=200`).catch(()=>[]),
     ]);
+    hotelHkLog          = hkLog || [];
     hotelRooms          = rooms;
     hotelBookings       = bookings;
     hotelInventoryItems = inventory;
@@ -15223,6 +15335,8 @@ async function settleMasterBillGroup(groupRef) {
       await dbPatch("hotel_rooms", { status:"available" }, `?id=eq.${booking.room_id}`);
       hotelBookings = hotelBookings.map(b => b.id===booking.id ? {...b, status:"checked_out"} : b);
       hotelRooms = hotelRooms.map(r => r.id===booking.room_id ? {...r, status:"available"} : r);
+      // Housekeeping: room is automatically Not Ready until cleaned & confirmed
+      await markRoomNotReadyOnCheckout(booking.room_id);
     }
 
     // One debtor record for the whole group if still outstanding
@@ -15356,6 +15470,8 @@ async function vacateRoom() {
     await dbPatch("hotel_rooms",    { status:"available" },  `?id=eq.${booking.room_id}`);
     hotelBookings = hotelBookings.map(b => b.id===booking.id ? {...b, status:"checked_out"} : b);
     hotelRooms    = hotelRooms.map(r => r.id===booking.room_id ? {...r, status:"available"} : r);
+    // Housekeeping: room is automatically Not Ready until cleaned & confirmed
+    await markRoomNotReadyOnCheckout(booking.room_id);
 
     // Log debtor record if there's still an outstanding balance
     if (outstanding > 0) {
@@ -15399,7 +15515,9 @@ async function confirmCheckAction() {
       await dbPatch("hotel_rooms",    { status:"available" },  `?id=eq.${booking.room_id}`);
       hotelBookings = hotelBookings.map(b => b.id===booking.id ? {...b, status:"checked_out"} : b);
       hotelRooms    = hotelRooms.map(r => r.id===booking.room_id ? {...r, status:"available"} : r);
-      showToast(`${booking.guest_name} checked out — room now available ✓`);
+      // Housekeeping: room is automatically Not Ready until cleaned & confirmed
+      await markRoomNotReadyOnCheckout(booking.room_id);
+      showToast(`${booking.guest_name} checked out — room marked Not Ready for housekeeping ✓`);
     }
     closeModal("checkinout-modal");
     refreshHotelCurrentView();
@@ -15434,6 +15552,7 @@ function refreshHotelCurrentView() {
   if(current === "restaurant")     renderPOSItems("restaurant");
   if(current === "bar")            renderPOSItems("bar");
   if(current === "inventory")      renderHotelInventoryTable();
+  if(current === "housekeeping")   renderHousekeeping();
 }
 
 
